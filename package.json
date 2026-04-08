@@ -1,0 +1,39 @@
+{
+  "name": "lazybuild",
+  "version": "0.1.0",
+  "description": "TUI for .NET/MSBuild/C++ build environment diagnostics and execution",
+  "type": "module",
+  "bin": {
+    "lazybuild": "./bin/lazybuild.js"
+  },
+  "scripts": {
+    "dev": "tsx src/main.tsx",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "ink": "^5.2.0",
+    "@inkjs/ui": "^2.0.0",
+    "react": "^18.3.0",
+    "chalk": "^5.3.0",
+    "fast-glob": "^3.3.0",
+    "fast-xml-parser": "^4.4.0",
+    "tree-kill": "^1.2.2",
+    "figures": "^6.1.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/react": "^18.3.0",
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.0",
+    "vitest": "^2.0.0",
+    "ink-testing-library": "^4.0.0"
+  }
+}
