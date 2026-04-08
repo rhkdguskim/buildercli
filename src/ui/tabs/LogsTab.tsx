@@ -12,6 +12,7 @@ const FILTERS: Array<{ label: string; value: LogFilter }> = [
 ];
 
 export const LogsTab: React.FC = () => {
+  const isActiveTab = useAppStore(s => s.activeTab) === 'logs';
   const logEntries = useAppStore(s => s.logEntries);
   const clearLogs = useAppStore(s => s.clearLogs);
   const [filterIdx, setFilterIdx] = useState(0);
@@ -81,10 +82,10 @@ export const LogsTab: React.FC = () => {
       setScrollOffset(next.scrollOffset);
     }
     if (key.ctrl && input === 'l') clearLogs();
-  }, { isActive: !!process.stdin.isTTY });
+  }, { isActive: !!process.stdin.isTTY && isActiveTab });
 
   return (
-    <Box flexDirection="column" padding={1} flexGrow={1}>
+    <Box flexDirection="column" padding={1} flexGrow={1} overflowY="hidden">
       {/* Header */}
       <Box flexDirection="row" justifyContent="space-between">
         <Box>
@@ -108,7 +109,7 @@ export const LogsTab: React.FC = () => {
       </Box>
 
       {/* Log view */}
-      <Box flexDirection="column" flexGrow={1} marginTop={1} borderStyle="single" paddingX={1}>
+      <Box flexDirection="column" flexGrow={1} marginTop={1} borderStyle="single" paddingX={1} overflowY="hidden">
         {logEntries.length === 0 ? (
           <Text color="gray">No build logs. Run a build to see output here.</Text>
         ) : filtered.length === 0 ? (

@@ -8,7 +8,7 @@ export const GlobalStatusBar: React.FC = () => {
   const projects = useAppStore(s => s.projects);
   const diagnostics = useAppStore(s => s.diagnostics);
   const buildResult = useAppStore(s => s.buildResult);
-  const logEntries = useAppStore(s => s.logEntries);
+  const logCount = useAppStore(s => s.logEntries.length);
 
   const errors = diagnostics.filter(item => item.severity === 'error').length;
   const warnings = diagnostics.filter(item => item.severity === 'warning').length;
@@ -35,7 +35,7 @@ export const GlobalStatusBar: React.FC = () => {
         <Text color="yellow"> {warnings}W</Text>
         <Text color="gray"> | </Text>
         <Text>logs:</Text>
-        <Text bold> {logEntries.length}</Text>
+        <Text bold> {logCount}</Text>
         <Text color="gray"> | </Text>
         <Text>last build:</Text>
         <Text color={

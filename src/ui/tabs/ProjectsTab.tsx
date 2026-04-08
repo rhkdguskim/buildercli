@@ -23,6 +23,7 @@ const typeColors: Record<string, string> = {
 };
 
 export const ProjectsTab: React.FC = () => {
+  const isActiveTab = useAppStore(s => s.activeTab) === 'projects';
   const projects = useAppStore(s => s.projects);
   const solutions = useAppStore(s => s.solutions);
   const projectScanStatus = useAppStore(s => s.projectScanStatus);
@@ -46,7 +47,7 @@ export const ProjectsTab: React.FC = () => {
     if (key.upArrow || input === 'k') setSelectedIdx(i => reduceListSelection(i, items.length, 'up'));
     if (key.downArrow || input === 'j') setSelectedIdx(i => reduceListSelection(i, items.length, 'down'));
     if (key.return && items[selectedIdx]?.kind === 'project') setActiveTab('build');
-  }, { isActive: !!process.stdin.isTTY });
+  }, { isActive: !!process.stdin.isTTY && isActiveTab });
 
   if (projectScanStatus === 'scanning' || projectScanStatus === 'idle') {
     return (

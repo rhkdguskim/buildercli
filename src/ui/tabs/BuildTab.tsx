@@ -15,11 +15,13 @@ const FOCUS_AREAS: FocusArea[] = ['targets', 'settings', 'action'];
 const SETTING_FIELDS: SettingField[] = ['configuration', 'platform', 'verbosity', 'parallel', 'devshell'];
 const VERBOSITIES = ['quiet', 'minimal', 'normal', 'detailed', 'diagnostic'] as const;
 
+const isTTY = !!process.stdin.isTTY;
+
 export const BuildTab: React.FC = () => {
+  const isActiveTab = useAppStore(s => s.activeTab) === 'build';
   const projects = useAppStore(s => s.projects);
   const solutions = useAppStore(s => s.solutions);
   const snapshot = useAppStore(s => s.snapshot);
-  const logEntries = useAppStore(s => s.logEntries);
   const { status, result, start, cancel, resolveCommand } = useBuild();
 
   // Build targets: solutions + standalone projects
@@ -314,7 +316,7 @@ export const BuildTab: React.FC = () => {
     if (input === '\x1b[15~' || input === 'b' || (key.ctrl && input === 'b')) {
       runBuild();
     }
-  }, { isActive: !!process.stdin.isTTY });
+  }, { isActive: isTTY && isActiveTab });
 
   if (targets.length === 0) {
     return (
@@ -400,28 +402,8 @@ export const BuildTab: React.FC = () => {
           />
         </Box>
 
-        {/* Right: Live output */}
-        <Box flexDirection="column" flexGrow={1} borderStyle="single" borderColor="gray" paddingX={1} overflowY="hidden">
-          <Box flexDirection="row" justifyContent="space-between" flexShrink={0}>
-            <Text bold color="cyan">Output</Text>
-            <Text color="gray">{logEntries.length} lines</Text>
-          </Box>
-
-          <Box flexDirection="column" flexGrow={1} overflowY="hidden">
-            {status === 'idle' && logEntries.length === 0 && (
-              <Text color="gray">Build output will appear here</Text>
-            )}
-            {logEntries.slice(-25).map((entry) => (
-              <Text key={entry.index} color={
-                entry.level === 'error' ? 'red' :
-                entry.level === 'warning' ? 'yellow' :
-                entry.source === 'stderr' ? 'red' : undefined
-              } wrap="truncate">
-                {entry.text}
-              </Text>
-            ))}
-          </Box>
-        </Box>
+        {/* Right: Live output (isolated to prevent logEntries re-renders from cascading) */}
+        <BuildOutputPanel />
       </Box>
 
       {/* Bottom hints */}
@@ -440,6 +422,36 @@ interface FieldRowProps {
   options?: string[];
   selectedIdx?: number;
 }
+
+/** Isolated component — only re-renders when logEntries or buildStatus changes */
+const BuildOutputPanel: React.FC = React.memo(() => {
+  const logEntries = useAppStore(s => s.logEntries);
+  const status = useAppStore(s => s.buildStatus);
+
+  return (
+    <Box flexDirection="column" flexGrow={1} borderStyle="single" borderColor="gray" paddingX={1} overflowY="hidden">
+      <Box flexDirection="row" justifyContent="space-between" flexShrink={0}>
+        <Text bold color="cyan">Output</Text>
+        <Text color="gray">{logEntries.length} lines</Text>
+      </Box>
+
+      <Box flexDirection="column" flexGrow={1} overflowY="hidden">
+        {status === 'idle' && logEntries.length === 0 && (
+          <Text color="gray">Build output will appear here</Text>
+        )}
+        {logEntries.slice(-25).map((entry) => (
+          <Text key={entry.index} color={
+            entry.level === 'error' ? 'red' :
+            entry.level === 'warning' ? 'yellow' :
+            entry.source === 'stderr' ? 'red' : undefined
+          } wrap="truncate">
+            {entry.text}
+          </Text>
+        ))}
+      </Box>
+    </Box>
+  );
+});
 
 const FieldRow: React.FC<FieldRowProps> = ({ label, value, active, hint, options, selectedIdx }) => {
   const hasMultiple = options && options.length > 1;

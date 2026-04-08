@@ -19,6 +19,7 @@ const CATEGORIES: { id: Category; label: string }[] = [
 ];
 
 export const EnvironmentTab: React.FC = () => {
+  const isActiveTab = useAppStore(s => s.activeTab) === 'environment';
   const snapshot = useAppStore(s => s.snapshot);
   const envStatus = useAppStore(s => s.envScanStatus);
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -28,7 +29,7 @@ export const EnvironmentTab: React.FC = () => {
     if (input === 'G') setSelectedIdx(i => reduceListSelection(i, CATEGORIES.length, 'bottom'));
     if (key.upArrow || input === 'k') setSelectedIdx(i => reduceListSelection(i, CATEGORIES.length, 'up'));
     if (key.downArrow || input === 'j') setSelectedIdx(i => reduceListSelection(i, CATEGORIES.length, 'down'));
-  }, { isActive: !!process.stdin.isTTY });
+  }, { isActive: !!process.stdin.isTTY && isActiveTab });
 
   if (envStatus !== 'done' || !snapshot) {
     return (

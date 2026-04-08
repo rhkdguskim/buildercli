@@ -6,15 +6,17 @@ import App from './App.js';
 function cleanup() {
   process.stdout.write('\x1b[?25h');   // Show cursor
   process.stdout.write('\x1b[?1006l'); // Disable SGR mouse
-  process.stdout.write('\x1b[?1003l'); // Disable mouse move tracking
   process.stdout.write('\x1b[?1000l'); // Disable mouse click tracking
   process.stdout.write('\x1b[?1049l'); // Leave alternate screen
 }
 
 // Enter alternate screen buffer — fixed canvas like vim/htop
-process.stdout.write('\x1b[?1049h');
-process.stdout.write('\x1b[?25l');   // Hide cursor
-process.stdout.write('\x1b[H');      // Move cursor to top-left
+process.stdout.write('\x1b[?1049h');  // Alternate screen
+process.stdout.write('\x1b[?25l');    // Hide cursor
+process.stdout.write('\x1b[H');       // Cursor to top-left
+process.stdout.write('\x1b[?1000h');  // Enable mouse click tracking
+process.stdout.write('\x1b[?1006h');  // Enable SGR mouse mode
+// NOTE: Do NOT enable \x1b[?1003h (mouse move tracking) — it floods stdin
 
 // Ensure cleanup on any exit
 process.on('exit', cleanup);

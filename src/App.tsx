@@ -126,11 +126,6 @@ const App: React.FC = () => {
     { key: 'q', label: 'Quit' },
   ];
 
-  const viewportKey = [
-    activeTab,
-    showHelp ? 'help' : 'content',
-    updateBannerVisible ? updateStatus : 'nobanner',
-  ].join(':');
 
   const isInitialScanning = envStatus === 'idle' || envStatus === 'scanning';
   const scanDots = '.'.repeat((scanFrame % 4) + 1).padEnd(4, ' ');
@@ -186,24 +181,17 @@ const App: React.FC = () => {
       {/* Tab Bar */}
       <TabBar tabs={tabs} activeTab={activeTab} />
 
-      {/* Main Content */}
-      <Box key={viewportKey} flexGrow={1} flexShrink={1} flexDirection="column" overflowY="hidden">
-        {showHelp ? (
-          <Box flexGrow={1} flexShrink={1} overflowY="hidden">
-            <ShortcutOverlay activeTab={activeTab} />
-          </Box>
-        ) : (
-          <Box flexGrow={1} flexShrink={1} overflowY="hidden">
-            {activeTab === 'overview' && <OverviewTab />}
-            {activeTab === 'environment' && <EnvironmentTab />}
-            {activeTab === 'projects' && <ProjectsTab />}
-            {activeTab === 'build' && <BuildTab />}
-            {activeTab === 'diagnostics' && <DiagnosticsTab />}
-            {activeTab === 'logs' && <LogsTab />}
-            {activeTab === 'history' && <HistoryTab />}
-            {activeTab === 'settings' && <SettingsTab />}
-          </Box>
-        )}
+      {/* Main Content — all tabs always mounted, only active one visible */}
+      <Box flexGrow={1} flexShrink={1} flexDirection="column" overflowY="hidden">
+        {showHelp && <ShortcutOverlay activeTab={activeTab} />}
+        <Box display={!showHelp && activeTab === 'overview' ? 'flex' : 'none'} flexGrow={1} overflowY="hidden"><OverviewTab /></Box>
+        <Box display={!showHelp && activeTab === 'environment' ? 'flex' : 'none'} flexGrow={1} overflowY="hidden"><EnvironmentTab /></Box>
+        <Box display={!showHelp && activeTab === 'projects' ? 'flex' : 'none'} flexGrow={1} overflowY="hidden"><ProjectsTab /></Box>
+        <Box display={!showHelp && activeTab === 'build' ? 'flex' : 'none'} flexGrow={1} overflowY="hidden"><BuildTab /></Box>
+        <Box display={!showHelp && activeTab === 'diagnostics' ? 'flex' : 'none'} flexGrow={1} overflowY="hidden"><DiagnosticsTab /></Box>
+        <Box display={!showHelp && activeTab === 'logs' ? 'flex' : 'none'} flexGrow={1} overflowY="hidden"><LogsTab /></Box>
+        <Box display={!showHelp && activeTab === 'history' ? 'flex' : 'none'} flexGrow={1} overflowY="hidden"><HistoryTab /></Box>
+        <Box display={!showHelp && activeTab === 'settings' ? 'flex' : 'none'} flexGrow={1} overflowY="hidden"><SettingsTab /></Box>
       </Box>
 
       {/* Help Bar */}

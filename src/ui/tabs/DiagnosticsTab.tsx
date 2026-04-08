@@ -14,6 +14,7 @@ const FILTERS: Array<{ label: string; value: Severity | 'all' }> = [
 ];
 
 export const DiagnosticsTab: React.FC = () => {
+  const isActiveTab = useAppStore(s => s.activeTab) === 'diagnostics';
   const diagnostics = useAppStore(s => s.diagnostics);
   const [filterIdx, setFilterIdx] = useState(0);
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -34,7 +35,7 @@ export const DiagnosticsTab: React.FC = () => {
     if (input === 'G') setSelectedIdx(i => reduceListSelection(i, filtered.length, 'bottom'));
     if (key.upArrow || input === 'k') setSelectedIdx(i => reduceListSelection(i, filtered.length, 'up'));
     if (key.downArrow || input === 'j') setSelectedIdx(i => reduceListSelection(i, filtered.length, 'down'));
-  }, { isActive: !!process.stdin.isTTY });
+  }, { isActive: !!process.stdin.isTTY && isActiveTab });
 
   return (
     <Box flexDirection="column" padding={1} flexGrow={1} overflowY="hidden">
