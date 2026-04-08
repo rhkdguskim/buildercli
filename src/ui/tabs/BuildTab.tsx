@@ -3,6 +3,7 @@ import { Box, Text, useInput } from 'ink';
 import { useAppStore } from '../store/useAppStore.js';
 import { useBuild } from '../hooks/useBuild.js';
 import { ProgressPanel } from '../components/ProgressPanel.js';
+import { ScrollableList } from '../components/ScrollableList.js';
 import type { ProjectInfo, BuildConfiguration, SolutionInfo } from '../../domain/models/ProjectInfo.js';
 import type { BuildProfile } from '../../domain/models/BuildProfile.js';
 import type { BuildSystem } from '../../domain/enums.js';
@@ -246,17 +247,16 @@ export const BuildTab: React.FC = () => {
         <Text bold color="cyan">{'─── Targets ───'}</Text>
         <Box borderStyle="round" borderColor={focusArea === 'targets' ? 'cyan' : 'gray'} paddingX={1} paddingY={0} flexDirection="column">
           <Text color="gray">↑↓ or j/k to move, Enter to configure</Text>
-          <Box height={1} />
-          {targets.slice(Math.max(0, targetIdx - 3), Math.max(0, targetIdx - 3) + 7).map((target, visibleIdx) => {
-            const absoluteIdx = Math.max(0, targetIdx - 3) + visibleIdx;
-            const selected = absoluteIdx === targetIdx;
-            return (
-              <Text key={target.path} inverse={selected}>
-                {selected ? ' ▶ ' : '   '}
+          <ScrollableList
+            selectedIdx={targetIdx}
+            maxVisible={8}
+            items={targets.map((target, i) => (
+              <Text key={target.path} inverse={i === targetIdx}>
+                {i === targetIdx ? ' ▶ ' : '   '}
                 {target.label}
               </Text>
-            );
-          })}
+            ))}
+          />
         </Box>
 
         <Box height={1} />
@@ -367,28 +367,31 @@ interface FieldRowProps {
   selectedIdx?: number;
 }
 
-const FieldRow: React.FC<FieldRowProps> = ({ label, value, active, hint, options, selectedIdx }) => (
-  <Box flexDirection="row" marginBottom={0}>
-    <Box width={16}>
-      <Text color={active ? 'cyan' : 'gray'} bold={active}>
-        {active ? '▶ ' : '  '}{label}
-      </Text>
+const FieldRow: React.FC<FieldRowProps> = ({ label, value, active, hint, options, selectedIdx }) => {
+  const hasMultiple = options && options.length > 1;
+  const idx = selectedIdx ?? 0;
+  const total = options?.length ?? 0;
+
+  return (
+    <Box flexDirection="row" marginBottom={0}>
+      <Box width={16} flexShrink={0}>
+        <Text color={active ? 'cyan' : 'gray'} bold={active}>
+          {active ? '▶ ' : '  '}{label}
+        </Text>
+      </Box>
+      <Box flexShrink={0}>
+        {hasMultiple ? (
+          <Text>
+            <Text color={active ? 'white' : 'gray'}>◄ </Text>
+            <Text bold inverse={active} color={active ? 'white' : undefined}> {value} </Text>
+            <Text color={active ? 'white' : 'gray'}> ► </Text>
+            <Text color="gray">({idx + 1}/{total})</Text>
+          </Text>
+        ) : (
+          <Text bold={active}>{value}</Text>
+        )}
+        {hint && <Text color="gray"> {hint}</Text>}
+      </Box>
     </Box>
-    <Box>
-      {options && options.length > 1 ? (
-        <Box>
-          <Text color={active ? 'white' : 'gray'}>{'◄ '}</Text>
-          {options.map((opt, i) => (
-            <Text key={opt} bold={i === selectedIdx} color={i === selectedIdx ? 'white' : 'gray'} inverse={i === selectedIdx}>
-              {' '}{opt}{' '}
-            </Text>
-          ))}
-          <Text color={active ? 'white' : 'gray'}>{' ►'}</Text>
-        </Box>
-      ) : (
-        <Text bold={active}>{value}</Text>
-      )}
-      {hint && <Text color="gray"> {hint}</Text>}
-    </Box>
-  </Box>
-);
+  );
+};

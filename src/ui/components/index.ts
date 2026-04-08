@@ -6,3 +6,4 @@ export { KeyValueTable } from './KeyValueTable.js';
 export { ProgressPanel } from './ProgressPanel.js';
 export { GlobalStatusBar } from './GlobalStatusBar.js';
 export { ShortcutOverlay } from './ShortcutOverlay.js';
+export { ScrollableList } from './ScrollableList.js';

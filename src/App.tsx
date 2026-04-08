@@ -22,8 +22,6 @@ import { SettingsTab } from './ui/tabs/SettingsTab.js';
 
 const diagnosticsService = new DiagnosticsService();
 
-type UpdateState = 'checking' | 'available' | 'updating' | 'done' | 'skipped' | 'error';
-
 const App: React.FC = () => {
   const { exit } = useApp();
   const { activeTab, tabs } = useTabNavigation();
@@ -31,67 +29,63 @@ const App: React.FC = () => {
   const { projects, status: projStatus } = useProjectScan();
   const setDiagnostics = useAppStore(s => s.setDiagnostics);
 
-  // Update check state
-  const [updateState, setUpdateState] = useState<UpdateState>('checking');
+  // Update notification (background, non-blocking)
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null);
-  const [updateMessage, setUpdateMessage] = useState('');
+  const [updateBannerVisible, setUpdateBannerVisible] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'updating' | 'done' | 'error'>('idle');
   const [showHelp, setShowHelp] = useState(false);
 
-  // Check for updates on startup
+  // Background update check — does NOT block the main UI
   useEffect(() => {
     const checker = new UpdateChecker();
     checker.check().then(result => {
       if (result && result.updateAvailable) {
         setUpdateInfo(result);
-        setUpdateState('available');
-      } else {
-        setUpdateState('skipped');
+        setUpdateBannerVisible(true);
       }
     }).catch(() => {
-      setUpdateState('skipped');
+      // Silently ignore update check failures
     });
   }, []);
 
-  // Handle update prompt input
+  // Handle update action
+  const performUpdate = () => {
+    setUpdateStatus('updating');
+    const checker = new UpdateChecker();
+    checker.performUpdate().then(success => {
+      if (success) {
+        setUpdateStatus('done');
+        setTimeout(() => exit(), 2000);
+      } else {
+        setUpdateStatus('error');
+        setTimeout(() => setUpdateBannerVisible(false), 4000);
+      }
+    }).catch(() => {
+      setUpdateStatus('error');
+      setTimeout(() => setUpdateBannerVisible(false), 4000);
+    });
+  };
+
+  // Global keybindings
   useInput((input, key) => {
-    if (updateState === 'available') {
-      if (input === 'y' || input === 'Y') {
-        setUpdateState('updating');
-        setUpdateMessage('Updating... please wait');
-        const checker = new UpdateChecker();
-        checker.performUpdate().then(success => {
-          if (success) {
-            setUpdateMessage('Update complete! Please restart buildercli.');
-            setUpdateState('done');
-            setTimeout(() => exit(), 2000);
-          } else {
-            setUpdateMessage('Update failed. Run "git pull && npm install && npm run build" manually.');
-            setUpdateState('error');
-            setTimeout(() => setUpdateState('skipped'), 3000);
-          }
-        }).catch(() => {
-          setUpdateMessage('Update failed.');
-          setUpdateState('error');
-          setTimeout(() => setUpdateState('skipped'), 3000);
-        });
+    // Update banner interaction
+    if (updateBannerVisible && updateStatus === 'idle') {
+      if (input === 'u' || input === 'U') {
+        performUpdate();
         return;
       }
-      if (input === 'n' || input === 'N' || key.escape) {
-        setUpdateState('skipped');
+      if (input === 'x' || input === 'X') {
+        setUpdateBannerVisible(false);
         return;
       }
-      return;
     }
 
-    // Normal global keybindings (only when not in update prompt)
-    if (updateState === 'skipped') {
-      if (input === '?') {
-        setShowHelp(v => !v);
-        return;
-      }
-      if (input === 'q' && !key.ctrl) {
-        exit();
-      }
+    if (input === '?') {
+      setShowHelp(v => !v);
+      return;
+    }
+    if (input === 'q' && !key.ctrl) {
+      exit();
     }
   }, { isActive: !!process.stdin.isTTY });
 
@@ -103,47 +97,6 @@ const App: React.FC = () => {
     }
   }, [envStatus, snapshot, projStatus, projects]);
 
-  // Show update prompt
-  if (updateState === 'checking') {
-    return (
-      <Box flexDirection="column" padding={1}>
-        <Text bold color="cyan">LazyBuild</Text>
-        <Text color="gray">Checking for updates...</Text>
-      </Box>
-    );
-  }
-
-  if (updateState === 'available' && updateInfo) {
-    return (
-      <Box flexDirection="column" padding={1}>
-        <Text bold color="cyan">LazyBuild</Text>
-        <Box height={1} />
-        <Box flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={2} paddingY={1}>
-          <Text bold color="yellow">Update Available!</Text>
-          <Box height={1} />
-          <Text>Current version: <Text color="gray">{updateInfo.currentCommit}</Text></Text>
-          <Text>Latest version:  <Text color="green">{updateInfo.remoteCommit}</Text></Text>
-          <Text>You are <Text bold color="yellow">{updateInfo.behindCount}</Text> commit(s) behind.</Text>
-          <Box height={1} />
-          <Text bold>Would you like to update now? <Text color="cyan">(Y/n)</Text></Text>
-        </Box>
-      </Box>
-    );
-  }
-
-  if (updateState === 'updating' || updateState === 'done' || updateState === 'error') {
-    return (
-      <Box flexDirection="column" padding={1}>
-        <Text bold color="cyan">LazyBuild</Text>
-        <Box height={1} />
-        <Text color={updateState === 'done' ? 'green' : updateState === 'error' ? 'red' : 'yellow'}>
-          {updateMessage}
-        </Text>
-      </Box>
-    );
-  }
-
-  // Normal app UI
   const helpItems = [
     { key: '1-8', label: 'Tab' },
     { key: '[ ]', label: 'Prev/Next' },
@@ -160,6 +113,23 @@ const App: React.FC = () => {
       </Box>
 
       <GlobalStatusBar />
+
+      {/* Update notification banner (non-blocking) */}
+      {updateBannerVisible && updateInfo && (
+        <Box paddingX={1} borderStyle="round" borderColor="yellow" marginX={1}>
+          {updateStatus === 'idle' && (
+            <Text>
+              <Text color="yellow" bold> Update available </Text>
+              <Text color="gray">({updateInfo.behindCount} commit(s) behind) </Text>
+              <Text color="cyan" bold>[U]</Text><Text> Update </Text>
+              <Text color="gray" bold>[X]</Text><Text> Dismiss</Text>
+            </Text>
+          )}
+          {updateStatus === 'updating' && <Text color="yellow">Updating... please wait</Text>}
+          {updateStatus === 'done' && <Text color="green">Update complete! Restarting...</Text>}
+          {updateStatus === 'error' && <Text color="red">Update failed. Run "git pull && npm install && npm run build" manually.</Text>}
+        </Box>
+      )}
 
       {/* Tab Bar */}
       <TabBar tabs={tabs} activeTab={activeTab} />

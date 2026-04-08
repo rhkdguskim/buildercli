@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { useAppStore } from '../store/useAppStore.js';
 import { ProgressPanel } from '../components/ProgressPanel.js';
+import { ScrollableList } from '../components/ScrollableList.js';
 import type { ProjectInfo, SolutionInfo } from '../../domain/models/ProjectInfo.js';
 
 const typeIcons: Record<string, string> = {
@@ -70,32 +71,35 @@ export const ProjectsTab: React.FC = () => {
         <Text bold color="cyan">Targets ({items.length})</Text>
         <Text color="gray">↑↓ or j/k to move, Enter opens Build for projects</Text>
         <Box height={1} />
-        {items.map((item, i) => {
-          const isSelected = i === selectedIdx;
-          if (item.kind === 'solution') {
-            const solution = item.data;
+        <ScrollableList
+          selectedIdx={selectedIdx}
+          maxVisible={18}
+          items={items.map((item, i) => {
+            const isSelected = i === selectedIdx;
+            if (item.kind === 'solution') {
+              const solution = item.data;
+              return (
+                <Text key={item.key} inverse={isSelected}>
+                  {isSelected ? ' ▶ ' : '   '}
+                  <Text color="cyan">[SLN]</Text>
+                  {' '}{solution.name}.sln
+                  <Text color="gray"> ({solution.solutionType}, {solution.projects.length} proj)</Text>
+                </Text>
+              );
+            }
+            const proj = item.data;
+            const icon = typeIcons[proj.projectType] ?? '?';
+            const color = typeColors[proj.projectType] ?? 'gray';
             return (
               <Text key={item.key} inverse={isSelected}>
                 {isSelected ? ' ▶ ' : '   '}
-                <Text color="cyan">[SLN]</Text>
-                {' '}{solution.name}.sln
-                <Text color="gray"> ({solution.solutionType}, {solution.projects.length} proj)</Text>
+                <Text color={color}>[{icon}]</Text>
+                {' '}{proj.name}
+                {proj.riskFlags.length > 0 && <Text color="yellow"> !</Text>}
               </Text>
             );
-          }
-
-          const proj = item.data;
-          const icon = typeIcons[proj.projectType] ?? '?';
-          const color = typeColors[proj.projectType] ?? 'gray';
-          return (
-            <Text key={item.key} inverse={isSelected}>
-              {isSelected ? ' ▶ ' : '   '}
-              <Text color={color}>[{icon}]</Text>
-              {' '}{proj.name}
-              {proj.riskFlags.length > 0 && <Text color="yellow"> !</Text>}
-            </Text>
-          );
-        })}
+          })}
+        />
       </Box>
 
       {/* Right: detail panel */}

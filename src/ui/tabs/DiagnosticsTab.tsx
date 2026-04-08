@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { useAppStore } from '../store/useAppStore.js';
+import { ScrollableList } from '../components/ScrollableList.js';
 import type { Severity } from '../../domain/enums.js';
 import { severityColors, symbols } from '../themes/colors.js';
 
@@ -48,8 +49,10 @@ export const DiagnosticsTab: React.FC = () => {
       {filtered.length === 0 ? (
         <Text color="green">No issues found.</Text>
       ) : (
-        <Box flexDirection="column">
-          {filtered.map((item, i) => {
+        <ScrollableList
+          selectedIdx={selectedIdx}
+          maxVisible={15}
+          items={filtered.map((item, i) => {
             const color = severityColors[item.severity] ?? 'gray';
             const symbol = symbols[item.severity] ?? '?';
             const isSelected = i === selectedIdx;
@@ -72,7 +75,7 @@ export const DiagnosticsTab: React.FC = () => {
               </Box>
             );
           })}
-        </Box>
+        />
       )}
     </Box>
   );
