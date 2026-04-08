@@ -11,6 +11,7 @@
     "dev": "tsx src/main.tsx",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
+    "postinstall": "npm run build",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "test": "vitest"

@@ -7,9 +7,11 @@ import type { ProjectInfo, BuildConfiguration, SolutionInfo } from '../../domain
 import type { BuildProfile } from '../../domain/models/BuildProfile.js';
 import type { BuildSystem } from '../../domain/enums.js';
 
-type Field = 'target' | 'configuration' | 'platform' | 'verbosity' | 'devshell' | 'action';
+type FocusArea = 'targets' | 'settings' | 'action';
+type SettingField = 'configuration' | 'platform' | 'verbosity' | 'devshell';
 
-const FIELDS: Field[] = ['target', 'configuration', 'platform', 'verbosity', 'devshell', 'action'];
+const FOCUS_AREAS: FocusArea[] = ['targets', 'settings', 'action'];
+const SETTING_FIELDS: SettingField[] = ['configuration', 'platform', 'verbosity', 'devshell'];
 const VERBOSITIES = ['quiet', 'minimal', 'normal', 'detailed', 'diagnostic'] as const;
 
 export const BuildTab: React.FC = () => {
@@ -49,7 +51,8 @@ export const BuildTab: React.FC = () => {
   const [platformIdx, setPlatformIdx] = useState(0);
   const [verbosityIdx, setVerbosityIdx] = useState(1); // minimal
   const [useDevShell, setUseDevShell] = useState(false);
-  const [activeField, setActiveField] = useState<Field>('target');
+  const [focusArea, setFocusArea] = useState<FocusArea>('targets');
+  const [activeSetting, setActiveSetting] = useState<SettingField>('configuration');
 
   // Current target's configurations
   const currentTarget = targets[targetIdx];
@@ -85,6 +88,24 @@ export const BuildTab: React.FC = () => {
     }
   }, [targetIdx]);
 
+  useEffect(() => {
+    if (targetIdx >= targets.length) {
+      setTargetIdx(Math.max(0, targets.length - 1));
+    }
+  }, [targetIdx, targets.length]);
+
+  useEffect(() => {
+    if (configIdx >= uniqueConfigs.length) {
+      setConfigIdx(Math.max(0, uniqueConfigs.length - 1));
+    }
+  }, [configIdx, uniqueConfigs.length]);
+
+  useEffect(() => {
+    if (platformIdx >= uniquePlatforms.length) {
+      setPlatformIdx(Math.max(0, uniquePlatforms.length - 1));
+    }
+  }, [platformIdx, uniquePlatforms.length]);
+
   // Build the profile
   const profile: BuildProfile | null = useMemo(() => {
     if (!currentTarget) return null;
@@ -110,6 +131,35 @@ export const BuildTab: React.FC = () => {
     return resolveCommand(proj, profile)?.displayString ?? '';
   }, [profile, currentTarget, resolveCommand]);
 
+  const runBuild = () => {
+    if (!currentTarget || !profile) return;
+    const proj = currentTarget.project ?? currentTarget.solution?.projects[0];
+    if (proj) start(proj, profile);
+  };
+
+  const adjustSetting = (dir: 1 | -1) => {
+    switch (activeSetting) {
+      case 'configuration':
+        setConfigIdx(i => Math.max(0, Math.min(uniqueConfigs.length - 1, i + dir)));
+        break;
+      case 'platform':
+        setPlatformIdx(i => Math.max(0, Math.min(uniquePlatforms.length - 1, i + dir)));
+        break;
+      case 'verbosity':
+        setVerbosityIdx(i => Math.max(0, Math.min(VERBOSITIES.length - 1, i + dir)));
+        break;
+      case 'devshell':
+        setUseDevShell(v => !v);
+        break;
+    }
+  };
+
+  const cycleFocusArea = (dir: 1 | -1) => {
+    const idx = FOCUS_AREAS.indexOf(focusArea);
+    const next = (idx + dir + FOCUS_AREAS.length) % FOCUS_AREAS.length;
+    setFocusArea(FOCUS_AREAS[next]!);
+  };
+
   // Keyboard navigation
   useInput((input, key) => {
     if (status === 'running') {
@@ -119,47 +169,66 @@ export const BuildTab: React.FC = () => {
       return;
     }
 
-    if (key.upArrow) {
-      const idx = FIELDS.indexOf(activeField);
-      if (idx > 0) setActiveField(FIELDS[idx - 1]!);
-    }
-    if (key.downArrow) {
-      const idx = FIELDS.indexOf(activeField);
-      if (idx < FIELDS.length - 1) setActiveField(FIELDS[idx + 1]!);
+    if (key.tab) {
+      cycleFocusArea(key.shift ? -1 : 1);
+      return;
     }
 
-    if (key.leftArrow || key.rightArrow) {
-      const dir = key.rightArrow ? 1 : -1;
-      switch (activeField) {
-        case 'target':
-          setTargetIdx(i => Math.max(0, Math.min(targets.length - 1, i + dir)));
-          break;
-        case 'configuration':
-          setConfigIdx(i => Math.max(0, Math.min(uniqueConfigs.length - 1, i + dir)));
-          break;
-        case 'platform':
-          setPlatformIdx(i => Math.max(0, Math.min(uniquePlatforms.length - 1, i + dir)));
-          break;
-        case 'verbosity':
-          setVerbosityIdx(i => Math.max(0, Math.min(VERBOSITIES.length - 1, i + dir)));
-          break;
-        case 'devshell':
+    if (focusArea === 'targets') {
+      if (key.upArrow || input === 'k') {
+        setTargetIdx(i => Math.max(0, i - 1));
+        return;
+      }
+      if (key.downArrow || input === 'j') {
+        setTargetIdx(i => Math.min(targets.length - 1, i + 1));
+        return;
+      }
+      if (key.return) {
+        setFocusArea('settings');
+        return;
+      }
+    }
+
+    if (focusArea === 'settings') {
+      if (key.upArrow || input === 'k') {
+        const idx = SETTING_FIELDS.indexOf(activeSetting);
+        if (idx > 0) setActiveSetting(SETTING_FIELDS[idx - 1]!);
+        return;
+      }
+      if (key.downArrow || input === 'j') {
+        const idx = SETTING_FIELDS.indexOf(activeSetting);
+        if (idx < SETTING_FIELDS.length - 1) setActiveSetting(SETTING_FIELDS[idx + 1]!);
+        return;
+      }
+      if (key.leftArrow || input === 'h') {
+        adjustSetting(-1);
+        return;
+      }
+      if (key.rightArrow || input === 'l') {
+        adjustSetting(1);
+        return;
+      }
+      if (input === ' ') {
+        if (activeSetting === 'devshell') {
           setUseDevShell(v => !v);
-          break;
+        } else {
+          setFocusArea('action');
+        }
+        return;
+      }
+      if (key.return) {
+        setFocusArea('action');
+        return;
       }
     }
 
-    if (key.return && activeField === 'action' && currentTarget && profile) {
-      const proj = currentTarget.project ?? currentTarget.solution?.projects[0];
-      if (proj) start(proj, profile);
+    if (focusArea === 'action' && (key.return || input === ' ')) {
+      runBuild();
+      return;
     }
 
-    // F5 shortcut
-    if (input === '\x1b[15~' || (key.ctrl && input === 'b')) {
-      if (currentTarget && profile) {
-        const proj = currentTarget.project ?? currentTarget.solution?.projects[0];
-        if (proj) start(proj, profile);
-      }
+    if (input === '\x1b[15~' || input === 'b' || (key.ctrl && input === 'b')) {
+      runBuild();
     }
   }, { isActive: !!process.stdin.isTTY });
 
@@ -173,51 +242,62 @@ export const BuildTab: React.FC = () => {
 
   return (
     <Box flexDirection="row" padding={1} flexGrow={1}>
-      {/* Left: Build configuration */}
-      <Box flexDirection="column" width="50%" paddingRight={2}>
-        <Text bold color="cyan">{'─── Build Configuration ───'}</Text>
+      <Box flexDirection="column" width="38%" paddingRight={2}>
+        <Text bold color="cyan">{'─── Targets ───'}</Text>
+        <Box borderStyle="round" borderColor={focusArea === 'targets' ? 'cyan' : 'gray'} paddingX={1} paddingY={0} flexDirection="column">
+          <Text color="gray">↑↓ or j/k to move, Enter to configure</Text>
+          <Box height={1} />
+          {targets.slice(Math.max(0, targetIdx - 3), Math.max(0, targetIdx - 3) + 7).map((target, visibleIdx) => {
+            const absoluteIdx = Math.max(0, targetIdx - 3) + visibleIdx;
+            const selected = absoluteIdx === targetIdx;
+            return (
+              <Text key={target.path} inverse={selected}>
+                {selected ? ' ▶ ' : '   '}
+                {target.label}
+              </Text>
+            );
+          })}
+        </Box>
+
         <Box height={1} />
+        <Text bold color="cyan">{'─── Build Setup ───'}</Text>
+        <Box borderStyle="round" borderColor={focusArea === 'settings' ? 'cyan' : 'gray'} paddingX={1} paddingY={0} flexDirection="column">
+          <Text color="gray">Tab to switch section, h/l to change value</Text>
+          <Box height={1} />
+          <FieldRow
+            label="Configuration"
+            value={uniqueConfigs[configIdx] ?? 'Debug'}
+            active={focusArea === 'settings' && activeSetting === 'configuration'}
+            options={uniqueConfigs}
+            selectedIdx={configIdx}
+          />
 
-        <FieldRow
-          label="Target"
-          value={currentTarget?.label ?? 'none'}
-          active={activeField === 'target'}
-          hint={`${targetIdx + 1}/${targets.length}`}
-        />
+          <FieldRow
+            label="Platform"
+            value={uniquePlatforms[platformIdx] ?? 'Any CPU'}
+            active={focusArea === 'settings' && activeSetting === 'platform'}
+            options={uniquePlatforms}
+            selectedIdx={platformIdx}
+          />
 
-        <FieldRow
-          label="Configuration"
-          value={uniqueConfigs[configIdx] ?? 'Debug'}
-          active={activeField === 'configuration'}
-          options={uniqueConfigs}
-          selectedIdx={configIdx}
-        />
+          <FieldRow
+            label="Verbosity"
+            value={VERBOSITIES[verbosityIdx]!}
+            active={focusArea === 'settings' && activeSetting === 'verbosity'}
+            options={[...VERBOSITIES]}
+            selectedIdx={verbosityIdx}
+          />
 
-        <FieldRow
-          label="Platform"
-          value={uniquePlatforms[platformIdx] ?? 'Any CPU'}
-          active={activeField === 'platform'}
-          options={uniquePlatforms}
-          selectedIdx={platformIdx}
-        />
-
-        <FieldRow
-          label="Verbosity"
-          value={VERBOSITIES[verbosityIdx]!}
-          active={activeField === 'verbosity'}
-          options={[...VERBOSITIES]}
-          selectedIdx={verbosityIdx}
-        />
-
-        <FieldRow
-          label="Dev Shell"
-          value={useDevShell ? 'ON' : 'OFF'}
-          active={activeField === 'devshell'}
-          hint={useDevShell ? 'vcvarsall.bat will be used' : ''}
-        />
+          <FieldRow
+            label="Dev Shell"
+            value={useDevShell ? 'ON' : 'OFF'}
+            active={focusArea === 'settings' && activeSetting === 'devshell'}
+            hint={useDevShell ? 'vcvarsall.bat will be used' : 'space to toggle'}
+          />
+        </Box>
 
         <Box marginTop={1}>
-          <Text inverse={activeField === 'action'} color={activeField === 'action' ? 'green' : 'gray'}>
+          <Text inverse={focusArea === 'action'} color={focusArea === 'action' ? 'green' : 'gray'}>
             {status === 'running' ? '  ■ Cancel (Esc)  ' : '  ▶ Build (Enter)  '}
           </Text>
         </Box>
@@ -246,6 +326,11 @@ export const BuildTab: React.FC = () => {
       {/* Right: Live output */}
       <Box flexDirection="column" flexGrow={1} borderStyle="single" paddingX={1}>
         <Text bold color="cyan">Output</Text>
+        {currentTarget && (
+          <Text color="gray" wrap="truncate">
+            {currentTarget.buildSystem} | {currentTarget.path}
+          </Text>
+        )}
         {status === 'running' && <ProgressPanel label="Building..." status="scanning" />}
         {status === 'idle' && logEntries.length === 0 && <Text color="gray">Build output will appear here</Text>}
 
@@ -264,6 +349,10 @@ export const BuildTab: React.FC = () => {
         {logEntries.length > 30 && (
           <Text color="gray">... showing last 30 of {logEntries.length} lines (see Logs tab for full output)</Text>
         )}
+
+        <Box marginTop={1}>
+          <Text color="gray">Tab: section | ↑↓: move | h/l: change | Space/Enter: select/build | b: build now</Text>
+        </Box>
       </Box>
     </Box>
   );

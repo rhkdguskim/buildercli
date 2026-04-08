@@ -23,8 +23,8 @@ export const EnvironmentTab: React.FC = () => {
   const [selectedIdx, setSelectedIdx] = useState(0);
 
   useInput((input, key) => {
-    if (key.upArrow) setSelectedIdx(i => Math.max(0, i - 1));
-    if (key.downArrow) setSelectedIdx(i => Math.min(CATEGORIES.length - 1, i + 1));
+    if (key.upArrow || input === 'k') setSelectedIdx(i => Math.max(0, i - 1));
+    if (key.downArrow || input === 'j') setSelectedIdx(i => Math.min(CATEGORIES.length - 1, i + 1));
   }, { isActive: !!process.stdin.isTTY });
 
   if (envStatus !== 'done' || !snapshot) {
@@ -42,6 +42,7 @@ export const EnvironmentTab: React.FC = () => {
       {/* Left: Category list */}
       <Box flexDirection="column" width={28} borderStyle="single" paddingX={1}>
         <Text bold color="cyan">Categories</Text>
+        <Text color="gray">↑↓ or j/k to move</Text>
         {CATEGORIES.map((cat, i) => (
           <Text key={cat.id} inverse={i === selectedIdx} color={i === selectedIdx ? 'blue' : undefined}>
             {i === selectedIdx ? ' ▶ ' : '   '}{cat.label}

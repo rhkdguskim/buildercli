@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { useAppStore } from '../store/useAppStore.js';
-import { StatusBadge } from '../components/StatusBadge.js';
 import { ProgressPanel } from '../components/ProgressPanel.js';
 import type { ProjectInfo, SolutionInfo } from '../../domain/models/ProjectInfo.js';
 
@@ -25,11 +24,24 @@ export const ProjectsTab: React.FC = () => {
   const projects = useAppStore(s => s.projects);
   const solutions = useAppStore(s => s.solutions);
   const projectScanStatus = useAppStore(s => s.projectScanStatus);
+  const setActiveTab = useAppStore(s => s.setActiveTab);
   const [selectedIdx, setSelectedIdx] = useState(0);
 
+  const items = useMemo(() => ([
+    ...solutions.map(solution => ({ kind: 'solution' as const, key: solution.filePath, label: `${solution.name}.sln`, data: solution })),
+    ...projects.map(project => ({ kind: 'project' as const, key: project.filePath, label: project.name, data: project })),
+  ]), [projects, solutions]);
+
+  useEffect(() => {
+    if (selectedIdx >= items.length) {
+      setSelectedIdx(Math.max(0, items.length - 1));
+    }
+  }, [items.length, selectedIdx]);
+
   useInput((input, key) => {
-    if (key.upArrow) setSelectedIdx(i => Math.max(0, i - 1));
-    if (key.downArrow) setSelectedIdx(i => Math.min(projects.length - 1, i + 1));
+    if (key.upArrow || input === 'k') setSelectedIdx(i => Math.max(0, i - 1));
+    if (key.downArrow || input === 'j') setSelectedIdx(i => Math.min(items.length - 1, i + 1));
+    if (key.return && items[selectedIdx]?.kind === 'project') setActiveTab('build');
   }, { isActive: !!process.stdin.isTTY });
 
   if (projectScanStatus === 'scanning' || projectScanStatus === 'idle') {
@@ -49,32 +61,34 @@ export const ProjectsTab: React.FC = () => {
     );
   }
 
-  const selected = projects[selectedIdx];
+  const selected = items[selectedIdx];
 
   return (
     <Box flexDirection="row" padding={1} flexGrow={1}>
       {/* Left: project list */}
       <Box flexDirection="column" width="45%" borderStyle="single" paddingX={1} overflowY="hidden">
-        {/* Solutions header */}
-        {solutions.length > 0 && (
-          <>
-            <Text bold color="cyan">Solutions ({solutions.length})</Text>
-            {solutions.map(sln => (
-              <Text key={sln.filePath} color="gray">
-                {'  '}{sln.name}.sln <Text color={typeColors[sln.solutionType] ?? 'gray'}>({sln.solutionType}, {sln.projects.length} proj)</Text>
+        <Text bold color="cyan">Targets ({items.length})</Text>
+        <Text color="gray">↑↓ or j/k to move, Enter opens Build for projects</Text>
+        <Box height={1} />
+        {items.map((item, i) => {
+          const isSelected = i === selectedIdx;
+          if (item.kind === 'solution') {
+            const solution = item.data;
+            return (
+              <Text key={item.key} inverse={isSelected}>
+                {isSelected ? ' ▶ ' : '   '}
+                <Text color="cyan">[SLN]</Text>
+                {' '}{solution.name}.sln
+                <Text color="gray"> ({solution.solutionType}, {solution.projects.length} proj)</Text>
               </Text>
-            ))}
-            <Box height={1} />
-          </>
-        )}
+            );
+          }
 
-        <Text bold color="cyan">Projects ({projects.length})</Text>
-        {projects.map((proj, i) => {
+          const proj = item.data;
           const icon = typeIcons[proj.projectType] ?? '?';
           const color = typeColors[proj.projectType] ?? 'gray';
-          const isSelected = i === selectedIdx;
           return (
-            <Text key={proj.filePath} inverse={isSelected}>
+            <Text key={item.key} inverse={isSelected}>
               {isSelected ? ' ▶ ' : '   '}
               <Text color={color}>[{icon}]</Text>
               {' '}{proj.name}
@@ -87,7 +101,11 @@ export const ProjectsTab: React.FC = () => {
       {/* Right: detail panel */}
       <Box flexDirection="column" flexGrow={1} paddingLeft={2}>
         {selected ? (
-          <ProjectDetail project={selected} />
+          selected.kind === 'solution' ? (
+            <SolutionDetail solution={selected.data} />
+          ) : (
+            <ProjectDetail project={selected.data} />
+          )
         ) : (
           <Text color="gray">Select a project to view details</Text>
         )}
@@ -95,6 +113,22 @@ export const ProjectsTab: React.FC = () => {
     </Box>
   );
 };
+
+const SolutionDetail: React.FC<{ solution: SolutionInfo }> = ({ solution }) => (
+  <Box flexDirection="column">
+    <Text bold color="cyan">{'─── '}{solution.name}.sln{' ───'}</Text>
+    <Box height={1} />
+    <Row label="Path" value={solution.filePath} />
+    <Row label="Type" value={solution.solutionType} color={typeColors[solution.solutionType] ?? 'gray'} />
+    <Row label="Projects" value={String(solution.projects.length)} />
+    <Row label="Configs" value={solution.configurations.map(config => `${config.configuration}|${config.platform}`).join(', ') || 'N/A'} />
+    <Box height={1} />
+    <Text bold>Contained Projects</Text>
+    {solution.projects.map(project => (
+      <Text key={project.filePath} color="gray">  {project.name}</Text>
+    ))}
+  </Box>
+);
 
 const ProjectDetail: React.FC<{ project: ProjectInfo }> = ({ project }) => {
   return (

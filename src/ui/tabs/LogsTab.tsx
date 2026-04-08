@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { useAppStore } from '../store/useAppStore.js';
 
@@ -28,6 +28,12 @@ export const LogsTab: React.FC = () => {
   const windowSize = 25;
   const maxOffset = Math.max(0, filtered.length - windowSize);
 
+  useEffect(() => {
+    if (!following && scrollOffset > maxOffset) {
+      setScrollOffset(maxOffset);
+    }
+  }, [following, maxOffset, scrollOffset]);
+
   // Auto-follow
   const effectiveOffset = following ? maxOffset : Math.min(scrollOffset, maxOffset);
   const visible = filtered.slice(effectiveOffset, effectiveOffset + windowSize);
@@ -37,11 +43,11 @@ export const LogsTab: React.FC = () => {
 
   useInput((input, key) => {
     if (key.tab) setFilterIdx(i => (i + 1) % FILTERS.length);
-    if (key.upArrow) {
+    if (key.upArrow || input === 'k') {
       setFollowing(false);
       setScrollOffset(o => Math.max(0, o - 1));
     }
-    if (key.downArrow) {
+    if (key.downArrow || input === 'j') {
       setScrollOffset(o => {
         const next = Math.min(maxOffset, o + 1);
         if (next >= maxOffset) setFollowing(true);
@@ -101,7 +107,7 @@ export const LogsTab: React.FC = () => {
 
       {/* Footer */}
       <Box marginTop={1}>
-        <Text color="gray">Tab: filter | ↑↓: scroll | f: follow | G: end | Ctrl+L: clear</Text>
+        <Text color="gray">Tab: filter | ↑↓ or j/k: scroll | f: follow | G: end | Ctrl+L: clear</Text>
       </Box>
     </Box>
   );

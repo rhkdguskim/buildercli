@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { useAppStore } from '../store/useAppStore.js';
 import type { Severity } from '../../domain/enums.js';
@@ -19,10 +19,16 @@ export const DiagnosticsTab: React.FC = () => {
   const filter = FILTERS[filterIdx]!.value;
   const filtered = filter === 'all' ? diagnostics : diagnostics.filter(d => d.severity === filter);
 
+  useEffect(() => {
+    if (selectedIdx >= filtered.length) {
+      setSelectedIdx(Math.max(0, filtered.length - 1));
+    }
+  }, [filtered.length, selectedIdx]);
+
   useInput((input, key) => {
     if (key.tab) setFilterIdx(i => (i + 1) % FILTERS.length);
-    if (key.upArrow) setSelectedIdx(i => Math.max(0, i - 1));
-    if (key.downArrow) setSelectedIdx(i => Math.min(filtered.length - 1, i + 1));
+    if (key.upArrow || input === 'k') setSelectedIdx(i => Math.max(0, i - 1));
+    if (key.downArrow || input === 'j') setSelectedIdx(i => Math.min(filtered.length - 1, i + 1));
   }, { isActive: !!process.stdin.isTTY });
 
   return (
@@ -36,7 +42,7 @@ export const DiagnosticsTab: React.FC = () => {
             </Text>
           </Box>
         ))}
-        <Text color="gray"> (Tab to switch filter)</Text>
+        <Text color="gray"> (Tab to switch filter, ↑↓ or j/k to move)</Text>
       </Box>
 
       {filtered.length === 0 ? (
