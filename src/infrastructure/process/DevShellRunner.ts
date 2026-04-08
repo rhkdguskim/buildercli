@@ -1,3 +1,4 @@
+import { spawn as nodeSpawn } from 'node:child_process';
 import { ProcessRunner, runCommand } from './ProcessRunner.js';
 import type { VsInstallation } from '../../domain/models/EnvironmentSnapshot.js';
 import { existsSync } from 'node:fs';
@@ -24,21 +25,37 @@ export class DevShellRunner extends ProcessRunner {
   startWithDevShell(command: string, args: string[], cwd?: string): void {
     const fullCmd = `${command} ${args.join(' ')}`;
 
-    let wrappedCommand: string;
+    let scriptBody: string;
     if (this.useVsDevCmd) {
-      // VsDevCmd.bat sets up the full VS environment (includes vcvars)
-      wrappedCommand = `chcp 65001 >nul && call "${this.devShellPath}" -arch=${this.arch} -no_logo && ${fullCmd}`;
+      scriptBody = `chcp 65001 >nul && call "${this.devShellPath}" -arch=${this.arch} -no_logo && ${fullCmd}`;
     } else {
-      // vcvarsall.bat <arch>
-      wrappedCommand = `chcp 65001 >nul && call "${this.devShellPath}" ${this.arch} && ${fullCmd}`;
+      scriptBody = `chcp 65001 >nul && call "${this.devShellPath}" ${this.arch} && ${fullCmd}`;
     }
 
-    this.start({
-      command: `cmd /C "${wrappedCommand}"`,
+    // Use spawn('cmd', ['/C', script]) — NOT spawn('cmd /C "..."')
+    // shell: false so ProcessRunner doesn't wrap it again
+    this.startRaw('cmd', ['/C', scriptBody], cwd);
+  }
+
+  /** Bypass ProcessRunner.start() logic and spawn directly */
+  private startRaw(cmd: string, args: string[], cwd?: string): void {
+    this.child = nodeSpawn(cmd, args, {
       cwd,
+      env: process.env,
       shell: false,
-      forceUtf8: false, // Already handling chcp in the command
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
     });
+
+    if (this.child.stdout) {
+      this.readLines(this.child.stdout, 'stdout');
+    }
+    if (this.child.stderr) {
+      this.readLines(this.child.stderr, 'stderr');
+    }
+
+    this.child.on('error', (err: Error) => this.emit('error', err));
+    this.child.on('close', (code: number | null) => this.emit('exit', code ?? 1));
   }
 }
 

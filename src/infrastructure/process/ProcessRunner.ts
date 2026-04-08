@@ -19,7 +19,7 @@ export interface CommandOutput {
 }
 
 export class ProcessRunner extends EventEmitter {
-  private child: ChildProcess | null = null;
+  protected child: ChildProcess | null = null;
 
   start(options: ProcessRunnerOptions): void {
     const { command, args = [], cwd, env, shell = true, forceUtf8 = true } = options;
@@ -81,7 +81,7 @@ export class ProcessRunner extends EventEmitter {
     });
   }
 
-  private readLines(stream: NodeJS.ReadableStream, event: 'stdout' | 'stderr'): void {
+  protected readLines(stream: NodeJS.ReadableStream, event: 'stdout' | 'stderr'): void {
     let buffer = '';
     stream.setEncoding('utf-8');
     stream.on('data', (chunk: string) => {
